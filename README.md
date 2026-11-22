@@ -1,20 +1,24 @@
 # Notas: Arquitectura Limpia con Jetpack Compose
 
-Proyecto de ejemplo de la lección **Arquitectura de Software** del curso *DEINT Jetpack Compose* (moronlu18.com).
+Proyecto de ejemplo de las lecciones **Arquitectura de Software** y **ViewModel y Repositorio** del curso *DEINT Jetpack Compose* (moronlu18.com).
 
 Es una app de notas sencilla: se escribe una nota con título y contenido, se guarda en la base de datos del móvil y aparece en la lista. Al pulsar una nota se abre su detalle.
 
 ## Qué se practica
 
-- **Arquitectura Limpia**: el código está repartido en las capas `domain`, `data` y `presentation`.
+- **Capas**: el código está repartido en `domain`, `data` y `presentation`.
 - **Regla de Dependencias**: `domain` es Kotlin puro y no importa nada de las otras capas.
 - **MVVM**: cada pantalla tiene su `ViewModel`, que guarda el estado con `mutableStateOf`.
-- **Casos de uso** con `operator fun invoke` y una regla de negocio (una nota sin título no se guarda).
+- **Lógica de negocio ligera en el ViewModel**: una nota sin título no se guarda.
 - **Repositorio**: interfaz en el dominio e implementación con Room en `data`.
 - **Mapper**: `Note` (dominio) frente a `NoteEntity` (tabla de Room).
 - **Flow**: la lista se actualiza sola cada vez que cambia la tabla.
 - **Navegación** con rutas en una clase sellada (`NavigationItem`) y un argumento (`itemId`) que el `DetailViewModel` lee de su `SavedStateHandle`.
 - **Hilt** para la inyección de dependencias.
+
+### Sin casos de uso
+
+La capa de dominio de la Arquitectura Limpia puede incluir casos de uso (`AddNoteUseCase`, `GetNotesUseCase`…), pero según la guía oficial de Android son **opcionales**. En el curso no los usamos: el ViewModel contiene la lógica de negocio ligera y llama directamente al repositorio.
 
 ## Estructura de carpetas
 
@@ -24,12 +28,8 @@ app/src/main/java/com/example/notas/
 ├── MainActivity.kt              // Solo llama a setContent { AppNavHost() }
 │
 ├── domain/                      // Dominio: Kotlin puro, sin Android
-│   ├── model/Note.kt
-│   ├── repository/NoteRepository.kt
-│   └── usecase/
-│       ├── AddNoteUseCase.kt
-│       ├── GetNotesUseCase.kt
-│       └── GetNoteByIdUseCase.kt
+│   ├── model/Note.kt            // Entidad
+│   └── repository/NoteRepository.kt   // Interfaz: el «contrato»
 │
 ├── data/                        // Datos: implementación con Room
 │   ├── local/                   // NoteDao, NoteEntity, NotesDatabase
@@ -45,15 +45,14 @@ app/src/main/java/com/example/notas/
 │
 └── di/                          // Módulos de Hilt
     ├── DatabaseModule.kt
-    ├── RepositoryModule.kt
-    └── UseCaseModule.kt
+    └── RepositoryModule.kt
 ```
 
 ## Recorrido de una acción
 
 1. `NotesScreen` llama a `viewModel.onAddNote(title, content)`.
-2. `NotesViewModel` ejecuta `addNote(note)`.
-3. `AddNoteUseCase` comprueba la regla y llama a `repo.insert(note)`.
+2. `NotesViewModel` comprueba que el título no esté vacío (lógica de negocio ligera).
+3. Si es correcto, llama a `repository.insert(note)`.
 4. `NoteRepositoryImpl` guarda la nota con `dao.insert(note.toEntity())`.
 5. Room envía la lista nueva por el `Flow` de `dao.getAll()`.
 6. El repositorio la convierte con `toDomain()`.
@@ -64,10 +63,9 @@ app/src/main/java/com/example/notas/
 
 Abre la carpeta del proyecto con Android Studio, espera a que termine la sincronización de Gradle y ejecuta la app en un emulador o en un móvil (Android 7.0 o superior).
 
-### Diferencias con el código de la lección
+### Diferencias con el código de las lecciones
 
-Para que el código de la lección sea más corto, allí no aparecen las anotaciones de Hilt. En el proyecto:
+Para que el código de las lecciones sea más corto, allí no aparecen las anotaciones de Hilt. En el proyecto:
 
 - Los ViewModels llevan `@HiltViewModel` y `@Inject constructor`, y las pantallas los obtienen con `hiltViewModel()`.
-- Los casos de uso se crean en `di/UseCaseModule.kt`, para que el dominio no tenga ninguna anotación.
 - `onAddNote` tiene un tercer parámetro opcional, `onSaved`, para vaciar el formulario cuando la nota se guarda, y el ViewModel expone un mensaje de `error`.

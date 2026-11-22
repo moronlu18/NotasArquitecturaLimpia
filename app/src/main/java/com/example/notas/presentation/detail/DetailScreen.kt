@@ -16,16 +16,37 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.notas.domain.model.Note
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Pantalla stateful: obtiene el ViewModel (que ya trae la nota del repositorio)
+ * y delega el dibujo a [DetailScreenContent].
+ */
 @Composable
 fun DetailScreen(
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: DetailViewModel = hiltViewModel()
 ) {
-    val note = viewModel.note
+    DetailScreenContent(
+        note = viewModel.note,
+        onBack = onBack,
+        modifier = modifier
+    )
+}
 
+/**
+ * Pantalla stateless: recibe el estado (la nota) y el evento (volver atrás).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DetailScreenContent(
+    note: Note?,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text(note?.title ?: "") },

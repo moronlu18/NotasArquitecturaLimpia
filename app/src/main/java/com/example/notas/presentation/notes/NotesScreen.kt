@@ -25,20 +25,61 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.notas.domain.model.Note
 import com.example.notas.presentation.components.NoteCard
 
-// La pantalla solo pinta el estado y avisa de lo que hace el usuario
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Pantalla stateful: es la única que conoce el ViewModel y conserva el estado
+ * de la interfaz. Recoge todo y se lo pasa a [NotesScreenContent].
+ */
 @Composable
 fun NotesScreen(
     onNoteClick: (Int) -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: NotesViewModel = hiltViewModel()
 ) {
     // Lo que el usuario está escribiendo: estado de la propia pantalla
     var title by rememberSaveable { mutableStateOf("") }
     var content by rememberSaveable { mutableStateOf("") }
 
+    NotesScreenContent(
+        notes = viewModel.notes,
+        error = viewModel.error,
+        title = title,
+        content = content,
+        onTitleChange = { title = it },
+        onContentChange = { content = it },
+        onAddNote = { noteTitle, noteContent ->
+            // El ViewModel decide si se guarda; si es así se limpia elel formulario
+            viewModel.onAddNote(noteTitle, noteContent) {
+                title = ""
+                content = ""
+            }
+        },
+        onNoteClick = onNoteClick,
+        modifier = modifier
+    )
+}
+
+/**
+ * Pantalla stateless: solo recibe el estado y los eventos, así que se puede
+ * previsualizar y probar sin ViewModel.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NotesScreenContent(
+    notes: List<Note>,
+    error: String?,
+    title: String,
+    content: String,
+    onTitleChange: (String) -> Unit,
+    onContentChange: (String) -> Unit,
+    onAddNote: (String, String) -> Unit,
+    onNoteClick: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Scaffold(
+        modifier = modifier,
         topBar = { TopAppBar(title = { Text("Mis notas") }) }
     ) { padding ->
         Column(
@@ -49,7 +90,7 @@ fun NotesScreen(
         ) {
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it },
+                onValueChange = onTitleChange,
                 label = { Text("Título") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -57,13 +98,13 @@ fun NotesScreen(
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = content,
-                onValueChange = { content = it },
+                onValueChange = onContentChange,
                 label = { Text("Contenido") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             // El ViewModel decide el mensaje; la pantalla solo lo muestra
-            viewModel.error?.let { mensaje ->
+            error?.let { mensaje ->
                 Text(
                     text = mensaje,
                     color = MaterialTheme.colorScheme.error,
@@ -73,12 +114,7 @@ fun NotesScreen(
             }
 
             Button(
-                onClick = {
-                    viewModel.onAddNote(title, content) {
-                        title = ""
-                        content = ""
-                    }
-                },
+                onClick = { onAddNote(title, content) },
                 modifier = Modifier
                     .align(Alignment.End)
                     .padding(top = 8.dp)
@@ -88,7 +124,7 @@ fun NotesScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            if (viewModel.notes.isEmpty()) {
+            if (notes.isEmpty()) {
                 Text(
                     text = "Todavía no hay notas",
                     style = MaterialTheme.typography.bodyMedium
@@ -96,7 +132,7 @@ fun NotesScreen(
             }
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(viewModel.notes, key = { it.id }) { note ->
+                items(notes, key = { it.id }) { note ->
                     NoteCard(note = note, onClick = { onNoteClick(note.id) })
                 }
             }

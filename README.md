@@ -9,12 +9,14 @@ Es una app de notas sencilla: se escribe una nota con título y contenido, se gu
 - **Capas**: el código está repartido en `domain`, `data` y `presentation`.
 - **Regla de Dependencias**: `domain` es Kotlin puro y no importa nada de las otras capas.
 - **MVVM**: cada pantalla tiene su `ViewModel`, que guarda el estado con `mutableStateOf`.
+- **State hoisting**: cada pantalla se divide en dos composables: `XScreen` (stateful, obtiene el ViewModel con `hiltViewModel()` y mantiene el estado) y `XScreenContent` (stateless, solo recibe el estado y los eventos, por lo que se puede previsualizar y probar sin ViewModel).
 - **Lógica de negocio ligera en el ViewModel**: una nota sin título no se guarda.
 - **Repositorio**: interfaz en el dominio e implementación con Room en `data`.
 - **Mapper**: `Note` (dominio) frente a `NoteEntity` (tabla de Room).
 - **Flow**: la lista se actualiza sola cada vez que cambia la tabla.
 - **Navegación** con rutas en una clase sellada (`NavigationItem`) y un argumento (`itemId`) que el `DetailViewModel` lee de su `SavedStateHandle`.
 - **Hilt** para la inyección de dependencias.
+- **Iconos de Material**: `material-icons-core` y `material-icons-extended` para usar cualquier icono de Material Design.
 
 ### Sin casos de uso
 
@@ -38,8 +40,8 @@ app/src/main/java/com/example/notas/
 │
 ├── presentation/                // Pantallas y ViewModels
 │   ├── navigation/              // NavigationItem, AppNavHost
-│   ├── notes/                   // NotesScreen, NotesViewModel
-│   ├── detail/                  // DetailScreen, DetailViewModel
+│   ├── notes/                   // NotesScreen + NotesScreenContent, NotesViewModel
+│   ├── detail/                  // DetailScreen + DetailScreenContent, DetailViewModel
 │   ├── components/NoteCard.kt
 │   └── theme/
 │
@@ -50,7 +52,7 @@ app/src/main/java/com/example/notas/
 
 ## Recorrido de una acción
 
-1. `NotesScreen` llama a `viewModel.onAddNote(title, content)`.
+1. `NotesScreenContent` avisa con el evento `onAddNote(title, content)`; `NotesScreen` lo reenvía a `viewModel.onAddNote(title, content)` y limpia el formulario si se guarda.
 2. `NotesViewModel` comprueba que el título no esté vacío (lógica de negocio ligera).
 3. Si es correcto, llama a `repository.insert(note)`.
 4. `NoteRepositoryImpl` guarda la nota con `dao.insert(note.toEntity())`.
@@ -69,3 +71,10 @@ Para que el código de las lecciones sea más corto, allí no aparecen las anota
 
 - Los ViewModels llevan `@HiltViewModel` y `@Inject constructor`, y las pantallas los obtienen con `hiltViewModel()`.
 - `onAddNote` tiene un tercer parámetro opcional, `onSaved`, para vaciar el formulario cuando la nota se guarda, y el ViewModel expone un mensaje de `error`.
+
+### Pantallas stateful y stateless
+
+Cada pantalla tiene dos composables en el mismo archivo:
+
+- `NotesScreen` / `DetailScreen`: funciones **stateful**. Obtienen el ViewModel con `hiltViewModel()` y conservan el estado de la UI (por ejemplo, el título y el contenido del formulario con `rememberSaveable`).
+- `NotesScreenContent` / `DetailScreenContent`: funciones **stateless**. Reciben el estado (`notes`, `error`, `title`, `content`, `note`) y los eventos (`onAddNote`, `onNoteClick`, `onBack`…) como parámetros, y solo pintan la interfaz. Al no depender de Hilt, se pueden previsualizar y probar fácilmente.

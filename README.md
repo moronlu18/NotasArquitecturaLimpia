@@ -24,6 +24,24 @@ La capa de dominio de la Arquitectura Limpia puede incluir casos de uso (`AddNot
 
 ## Estructura de carpetas
 
+### Nivel superior del repositorio
+
+```
+.
+├── app/                      // Módulo Android: código Kotlin y recursos
+├── build.gradle.kts          // Script de Gradle raíz (plugins)
+├── settings.gradle.kts       // Nombre del proyecto y módulos incluidos
+├── gradle.properties         // Opciones de Gradle (JVM, etc.)
+├── gradle/libs.versions.toml // Catálogo centralizado de versiones y dependencias
+├── gradlew / gradlew.bat     // Wrappers de Gradle (Linux/Windows)
+├── gradle/wrapper/           // JAR y propiedades del wrapper
+├── local.properties          // Ruta al SDK de Android (local, no se sube)
+└── README.md                 // Estos apuntes
+```
+
+Dentro del módulo `app` están `src/main/AndroidManifest.xml`, `src/main/res/`
+(`values/strings.xml`, `values/themes.xml`) y `src/main/java/com/example/notas/`:
+
 ```
 app/src/main/java/com/example/notas/
 ├── NotasApplication.kt          // Clase Application (punto de entrada de Hilt)
@@ -49,6 +67,43 @@ app/src/main/java/com/example/notas/
     ├── DatabaseModule.kt
     └── RepositoryModule.kt
 ```
+
+## Rutas de navegación
+
+Definidas en `presentation/navigation/NavigationItem.kt` y registradas en
+`presentation/navigation/AppNavHost.kt`:
+
+| Ruta | Destino | Cómo se construye |
+| --- | --- | --- |
+| `notes` | Lista y formulario de notas (pantalla inicial) | `NavigationItem.Notes.route` |
+| `details/{itemId}` | Detalle de una nota | `NavigationItem.Details.createRoute(id)` → `details/3` |
+
+El argumento `itemId` viaja en la ruta y Navigation lo copia en el
+`SavedStateHandle`; `DetailViewModel` lo lee con
+`savedStateHandle.get<Int>("itemId")` para pedir esa nota al repositorio.
+
+## Actualizar (editar) una nota
+
+La app actual solo **crea** y **consulta** notas: el detalle es de solo lectura.
+Para añadir la edición, la ruta del código a seguir es esta, de dentro hacia fuera:
+
+1. `domain/repository/NoteRepository.kt`: añadir `suspend fun update(note: Note)`.
+2. `data/local/NoteDao.kt`: añadir `@Update suspend fun update(note: NoteEntity)`.
+3. `data/repository/NoteRepositoryImpl.kt`: implementar el método con
+   `dao.update(note.toEntity())`.
+4. `presentation/detail/DetailViewModel.kt`: exponer un evento `onUpdate(...)`
+   que llame a `repository.update(...)`.
+5. `presentation/detail/DetailScreen.kt`: convertir `DetailScreenContent` en
+   campos editables y añadir el botón que dispara ese evento.
+
+La ruta de navegación que ya lleva al detalle (y que se reutilizaría) es
+`details/{itemId}`. Los apuntes en sí (este README) se actualizan en:
+
+```
+/home/lourdes/pCloudDrive/Clases/JETPACK/4_interfaz_dinamica/ejercicios_apuntes/NotasArquitecturaLimpia-main/README.md
+```
+
+y se publican con `git add README.md && git commit -m "docs: ..." && git push`.
 
 ## Recorrido de una acción
 
